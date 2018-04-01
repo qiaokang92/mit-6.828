@@ -10,6 +10,9 @@ Course website, see
 - [Lab 1: Booting a PC](https://github.com/buaakq/mit-6.828/tree/lab1)
    - [Lab 1 notes](https://github.com/buaakq/mit-6.828/blob/lab1/lab1-notes.md)
 
+- [Lab 2: Memory Management](https://github.com/buaakq/mit-6.828/tree/lab2)
+   - [Lab 2 notes](https://github.com/buaakq/mit-6.828/blob/lab2/lab2-notes.md)
+
 ## Contact
 
 Author: Qiao Kang
