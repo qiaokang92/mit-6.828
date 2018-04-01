@@ -14,8 +14,11 @@ How to build QEMU from source code? see [tools page](https://pdos.csail.mit.edu/
 
 ## Part 1 PC bootstrap
 
+### Getting Started
+
 MIT suggests a book: PC assembly language to learn x86 assembly language.
-[The Brennan's Guide to Inline Assembly](http://www.delorie.com/djgpp/doc/brennan/brennan_att_inline_djgpp.html) teaches you how to convert asm syntax between intel syntax and AT&T syntax.
+[The Brennan's Guide to Inline Assembly](http://www.delorie.com/djgpp/doc/brennan/brennan_att_inline_djgpp.html) 
+teaches you how to convert asm syntax between intel syntax and AT&T syntax.
 
 **Exercies 1**: read the material above.
 
@@ -31,6 +34,8 @@ make
 make qemu-nox
 ```
 Then you can play with the `K>` console.
+
+### A PC's Physical Memory
 
 A 32-bit PC's physical address look likes:
 ```
@@ -72,6 +77,8 @@ When Intel supports 4G memory, there is a "hole" in physical memory, that is the
 
 The very top part of 4G memory is commonly presevered by BIOS for PCI devices.
 
+Note: JOS only uses the first 256MB of a PC's physical memory.
+
 ### Play the BIOS
 
 Now let's play with the BIOS by running:
@@ -82,6 +89,16 @@ make qemu-nox-gdb
 make gdb
 ```
 
+The first instruction the CPU executes is
+```
+[f000:fff0] 0xffff0: ljmp  $0xf000,$0xe05b
+```
+Which means:
+- PC starts running at `0xffff0`
+- PC wants to jump to `0xfe0b5`
+
+Note: in real mode, physical address = 16 * segment + offset.
+
 **Exercise 2** asks to use `si` to see what the BIOS is doing.
 
 BIOS should:
@@ -91,13 +108,16 @@ BIOS should:
 4. find the bootable disk, read the bootloader to memory.
 5. transfer control to the bootloader.
 
-## The Boot Loader
+## Part 2: The Boot Loader
 
 A Disk has many many **sectors**, each 512 bytes. If the disk is bootable, the first sector is called **boot sector**.
 
 BIOS will load the content of boot sector into memory at physical addresses 0x7c00 through 0x7dff, and jmp to CS:IP to 0000:7c00, passing control to the boot loader.
 
 The boot loader code is `boot/boot.S` and `boot/main.c`. Now you should go through the code and understand what the code is doing.
+
+- First, it switches to 32-bit protected mode, then CPU can access memory over 1MB. In protected mode, offset is 32-bit long instead of 16-bit.
+- Second, it reads the kernel from HD by accessing the ID disk.
 
 Some tips: you can read `obj/boot/boot.asm` to better understand `boot/boot.asm`, as this file makes it easy to see exactly where in physical memory all of the boot loader's code reside
 
@@ -136,6 +156,13 @@ Conclude what boot loader does:
 
 ## The Kernel
 
+Now we talk about the initial memory mapping that JOS kernel does.
+See the figure below:
+
+![](http://p6hn151zy.bkt.clouddn.com/kernel_mapping.jpg)
+
+Basically, JOS maps 0xf0000000 ~ 0xffffffff to the first 256 physical memory.
+That's why JOS can only uses the first 256 MB memory.
 The kernel starts running at `0x100000`, it then maps VA `0xf0100000` to MA `0x100000` to enable virtual memory support.
 
 **Exercise 7** is interesting as well
@@ -268,4 +295,27 @@ NOTE: you should use `while(ebp)` instead of `while(*ebp)`. If you use the latte
 
 **Exercise 12** asks you to implement a more complete `bt`, which prints line numbers, function names, source files, etc...
 
-I have to admit thought I tried to understand `struct Stab` but I just copied the code from an [csdn blog](http://blog.csdn.net/scnu20142005027/article/details/51264186).
+First, we need to complete `debuginfo_eip`
+
+```
+   stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+   if (lline > rline) {
+      return -1;
+   }
+```
+
+We call `stab_binsearch` to locate the line number for the eip.
+
+Then we need to call `debuginfo_eip` in `mon_backtrace` function
+```
+      /* Exercise 12 */
+      debuginfo_eip(*eip, &info);
+      cprintf("\n     %s:%d: %.*s+%d\n",
+              info.eip_file,
+              info.eip_line,
+              info.eip_fn_namelen,
+              info.eip_fn_name,
+              *eip - info.eip_fn_addr);
+```
+
+This completes Lab 1.
