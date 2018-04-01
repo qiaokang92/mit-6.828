@@ -2,7 +2,7 @@
 
 ## Part 1: Physical Page Management
 
-This part illustrats how kernel manages physical memeory.
+This part illustrats how kernel manages physical memeory..
 
 After setting the 4MB page table in entry.S, the kernel now runs at `[KERNBASE,  KERNBASE + 4MB]`, i.e. `[0xf0000000, 0xf0400000]`and can use virtual addresses.
 
