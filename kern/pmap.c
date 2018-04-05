@@ -340,7 +340,8 @@ page_init(void)
       // [1, IOPHYSMEM]: free
       // [IOPHYSMEM, EXTPHYSMEM): hole
       // [EXTPHYSMEM, pages + npages): used by pages array (from boot_alloc())
-      if (i >= PGNUM(IOPHYSMEM) && i <= PGNUM(PADDR((void *)kva))) {
+      if ((i >= PGNUM(IOPHYSMEM) && i <= PGNUM(PADDR((void *)kva)))
+          || (i == PGNUM(MPENTRY_PADDR))) {
          continue;
       }
 		pages[i].pp_ref = 0;
@@ -666,7 +667,16 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+   size_t sz = ROUNDUP(size, PGSIZE);
+   uintptr_t va = MMIOBASE;
+
+   /* panic if reservation overflows MMIOLIM) */
+   assert(va + sz < MMIOLIM);
+   /* map MMIO region */
+   boot_map_region(kern_pgdir, va, sz, pa, PTE_PCD | PTE_PWT | PTE_W);
+
+   base += sz;
+   return (void *)va;
 }
 
 static uintptr_t user_mem_check_addr;
