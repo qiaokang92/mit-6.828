@@ -79,13 +79,12 @@ trap_init(void)
    for (i = 0; entry_data[i][0] != 0; i ++) {
       entry = (void *)entry_data[i][0];
       num = entry_data[i][1];
-      // cprintf("num = %d, entry = %p\n", num, entry);
       if (num == T_BRKPT || num == T_SYSCALL) {
          user = 3;
       } else {
          user = 0;
       }
-      
+
       SETGATE(idt[num], 0, GD_KT, entry, user);
    }
 
@@ -121,22 +120,14 @@ trap_init_percpu(void)
 	// user space on that CPU.
 	//
 	// LAB 4: Your code here:
-
-	// Setup a TSS so that we get the right stack
-	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
-	ts.ts_ss0 = GD_KD;
-	ts.ts_iomb = sizeof(struct Taskstate);
-
-	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
-					sizeof(struct Taskstate) - 1, 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
-
-	// Load the TSS selector (like other segment selectors, the
-	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
-
+   int i = cpunum();
+   cpus[i].cpu_ts.ts_esp0 = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+   cpus[i].cpu_ts.ts_ss0 = GD_KD;
+   gdt[(GD_TSS0 >> 3) + i] = SEG16(STS_T32A,
+                                   (uint32_t) (&cpus[i].cpu_ts),
+                                   sizeof(struct Taskstate) - 1, 0);
+   gdt[(GD_TSS0 >> 3) + i].sd_s = 0;
+	ltr(GD_TSS0 + 8 * i);
 	// Load the IDT
 	lidt(&idt_pd);
 }

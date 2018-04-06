@@ -53,3 +53,80 @@ other symbols.
 
 In contrast, in `entry.S` we setup page table soon after BSP starts running so
 we can just use virtual address.
+
+### Per-CPU State and Initialization
+
+Each CPU has private state, which includes
+* kernel stack, see `inc/memlayout.h` for where it is
+* TSS and TSS descriptor
+* curenv pointer, which points to `struct Env` which is running on this CPU
+* registers
+
+In **exercise 3**, we will need to set up per-CPU stack.
+
+```
+   int i;
+   uint32_t va = KSTACKTOP - KSTKSIZE;
+   uint32_t pa;
+
+   for (i = 0; i < NCPU; i ++) {
+      pa = PADDR(percpu_kstacks[i]);
+      boot_map_region(kern_pgdir, va, KSTKSIZE, pa, PTE_W | PTE_P);
+      /* update va to next stack, skip guard page area */
+      va = va - (KSTKGAP + KSTKSIZE);
+   }
+```
+
+In **exercise 4**, we need to initialize TSS and TSS descriptor for each CPU,
+which is done in `trap_init_percpu()`.
+
+```
+   int i = cpunum();
+   cpus[i].cpu_ts.ts_esp0 = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+   cpus[i].cpu_ts.ts_ss0 = GD_KD;
+   gdt[(GD_TSS0 >> 3) + i] = SEG16(STS_T32A,
+                                   (uint32_t) (&cpus[i].cpu_ts),
+                                   sizeof(struct Taskstate) - 1, 0);
+   gdt[(GD_TSS0 >> 3) + i].sd_s = 0;
+	ltr(GD_TSS0 + 8 * i);
+	// Load the IDT
+	lidt(&idt_pd);
+```
+
+Remember that TSS contains the address of kernel stack, so what we need to do
+here is simply fill kernel stack address in corresponding `ts_esp0` and `ts_ss0`
+field.
+
+At this point, if you run `make qemu-nox CPUS=4`, you will see this:
+
+```
+[#26#qiaokang@ubuntu ~/mit-6.828]$make qemu-nox CPUS=4
++ cc kern/init.c
++ cc kern/pmap.c
++ ld obj/kern/kernel
++ mk obj/kern/kernel.img
+***
+*** Use Ctrl-a x to exit qemu
+***
+qemu-system-i386 -nographic -drive
+file=obj/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb
+tcp::26000 -D qemu.log -smp 4
+6828 decimal is 15254 octal!
+Physical memory: 131072K available, base = 640K, extended = 130432K
+check_page_free_list() succeeded!
+check_page_alloc() succeeded!
+check_page() succeeded!
+check_kern_pgdir() succeeded!
+check_page_free_list() succeeded!
+check_page_installed_pgdir() succeeded!
+SMP: CPU 0 found 4 CPU(s)
+enabled interrupts: 1 2
+SMP: CPU 1 starting
+SMP: CPU 2 starting
+SMP: CPU 3 starting
+[00000000] new env 00001000
+kernel panic on CPU 0 at kern/trap.c:304: page fault in kernel
+Welcome to the JOS kernel monitor!
+Type 'help' for a list of commands.
+K> QEMU:
+```

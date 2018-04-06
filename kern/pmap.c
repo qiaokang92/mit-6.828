@@ -294,7 +294,16 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+   int i;
+   uint32_t va = KSTACKTOP - KSTKSIZE;
+   uint32_t pa;
 
+   for (i = 0; i < NCPU; i ++) {
+      pa = PADDR(percpu_kstacks[i]);
+      boot_map_region(kern_pgdir, va, KSTKSIZE, pa, PTE_W | PTE_P);
+      /* update va to next stack, skip guard page area */
+      va = va - (KSTKGAP + KSTKSIZE);
+   }
 }
 
 // --------------------------------------------------------------
@@ -668,7 +677,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 	//
 	// Your code here:
    size_t sz = ROUNDUP(size, PGSIZE);
-   uintptr_t va = MMIOBASE;
+   uintptr_t va = base;
 
    /* panic if reservation overflows MMIOLIM) */
    assert(va + sz < MMIOLIM);
