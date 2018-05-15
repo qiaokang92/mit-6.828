@@ -1,4 +1,4 @@
-# Lab 4: Preemptive Multitasking 
+# Lab 4: Preemptive Multitasking
 
 ## Part A: Multiprocessor Support and Cooperative Multitasking
 
@@ -42,7 +42,7 @@ There is a interesting question:
 kern/mpentry.S is compiled and linked to run above KERNBASE just like everything
 else in the kernel, what is the purpose of macro MPBOOTPHYS? Why is it necessary
 in kern/mpentry.S but not in boot/boot.S? In other words, what could go wrong
-if it were omitted in kern/mpentry.S? 
+if it were omitted in kern/mpentry.S?
 Hint: recall the differences between the link address and the load address
 that we have discussed in Lab 1.
 
@@ -105,9 +105,9 @@ At this point, if you run `make qemu-nox CPUS=4`, you will see this:
 + cc kern/pmap.c
 + ld obj/kern/kernel
 + mk obj/kern/kernel.img
-***
-*** Use Ctrl-a x to exit qemu
-***
+**
+** Use Ctrl-a x to exit qemu
+**
 qemu-system-i386 -nographic -drive
 file=obj/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb
 tcp::26000 -D qemu.log -smp 4
@@ -130,3 +130,21 @@ Welcome to the JOS kernel monitor!
 Type 'help' for a list of commands.
 K> QEMU:
 ```
+
+### Locking
+
+In this section, we add some `lock_kernel()` and `unlock_kernel()` to avoid data
+racing between CPUs.
+
+An important **question**: It seems that using the big kernel lock guarantees that
+only one CPU can run the kernel code at a time. Why do we still need separate
+kernel stacks for each CPU? Describe a scenario in which using a shared kernel
+stack will go wrong, even with the protection of the big kernel lock.
+
+A possible scenario is: right after a sw exception happens on CPU 0 and trap
+frame is not established, another hw interrupt on CPU 1 is triggered. Then the
+kernel stack will be messed up since CPU 1 starts push regs to the stack as well.
+
+Challenge: implement fine-grained locking. // TODO
+
+### Round-Robin Scheduling

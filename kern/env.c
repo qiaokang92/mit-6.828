@@ -558,5 +558,8 @@ env_run(struct Env *e)
    curenv->env_runs ++;
    lcr3(PADDR(curenv->env_pgdir));
 
+   // unlock big kernel lock right before returning back to user space
+   unlock_kernel();
+
    env_pop_tf(&curenv->env_tf);
 }
